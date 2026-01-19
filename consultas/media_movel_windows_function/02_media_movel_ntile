@@ -20,6 +20,7 @@ Cuidados:
 - Requer banco com suporte a window functions (ex.: MySQL 8+, Postgres, SQL Server, Oracle).
 */
 
+
 SELECT
     ano,
     funcionario,
