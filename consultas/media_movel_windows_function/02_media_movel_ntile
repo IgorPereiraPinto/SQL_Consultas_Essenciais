@@ -1,53 +1,25 @@
-# 📊 NTILE() em SQL — Segmentação em grupos (quartis, quintis, decis)
+/*
+Consulta — NTILE(): segmentação em grupos (quartis)
 
-**NTILE(n)** é uma *window function* que **divide os registros em `n` grupos** com tamanhos **aproximadamente iguais**, de acordo com uma ordenação (ranking).  
-É perfeita para criar **faixas de performance** (top, médio, baixo) sem precisar calcular percentis na mão.
+O que faz:
+- NTILE(n) divide as linhas em n grupos de tamanho aproximadamente igual, com base na ordenação definida.
+- Serve para criar “faixas” (top/médio/baixo) de performance sem calcular percentis manualmente.
 
----
+Caso prático:
+- Classificar vendedores em 4 quartis de performance por unidades vendidas.
+- Como a ordenação é DESC, o grupo 1 representa os melhores (top) e o grupo 4 os piores (bottom).
 
-## ✅ Caso prático: vendedores em quartis de performance
-A ideia é classificar vendedores em **4 grupos (quartis)** com base em `unidades_vendidas`:
+Quando usar:
+- Segmentação de performance (top 25%, meio, bottom 25%)
+- Curva ABC / classificação de produtos/clientes por faixa
+- Identificar top performers e low performers de forma rápida
 
-- **Q1 (1º quartil)** → top 25% (melhores)
-- **Q4 (4º quartil)** → bottom 25% (piores)
+Cuidados:
+- Empates (mesmo valor) podem cair em grupos diferentes, porque o NTILE balanceia quantidade de linhas.
+- Se quiser comparar tudo junto (sem separar por ano), remova o PARTITION BY ano.
+- Requer banco com suporte a window functions (ex.: MySQL 8+, Postgres, SQL Server, Oracle).
+*/
 
-> Observação: o número retornado pelo `NTILE(4)` é **1 a 4** (onde **1 é o melhor grupo**, porque estamos ordenando **DESC**).
-
----
-
-## 🔎 Como funciona
-Exemplo:
-
-- `NTILE(4)` → divide em 4 grupos  
-- `ORDER BY unidades_vendidas DESC` → define o ranking do maior para o menor  
-- `PARTITION BY ano` → cria os grupos **separadamente por ano** (não mistura 2024 com 2025, por exemplo)
-
----
-
-## 🧠 Exemplos rápidos
-- `NTILE(2)` → 2 grupos (top 50% vs bottom 50%)
-- `NTILE(4)` → quartis (bem comum)
-- `NTILE(10)` → decis (mais detalhado)
-
----
-
-## 🎯 Aplicações comuns
-- ✅ Segmentação de clientes (A/B/C/D)
-- ✅ Curva ABC (produtos/receita/volume)
-- ✅ Identificar **top performers** e **low performers**
-- ✅ Análises por faixas (percentis/quartis) em dashboards
-
----
-
-## ⚠️ Cuidados e dicas
-- Se houver **empates** em `unidades_vendidas`, a divisão ainda acontece, mas pessoas com o mesmo valor podem cair em grupos diferentes (normal em NTILE).
-- Se você quiser segmentar **o geral**, remova o `PARTITION BY ano`.
-- Para nomes mais amigáveis (ex.: "Top 25%"), você pode criar um `CASE` em cima do quartil.
-
----
-
-## 🧾 Query (exatamente como no exemplo)
-```sql
 SELECT
     ano,
     funcionario,
@@ -56,4 +28,53 @@ SELECT
         PARTITION BY ano
         ORDER BY unidades_vendidas DESC
     ) AS quartil_performance
+FROM cap12.vendas;
+
+/*
+Consulta — Média móvel (Moving Average) com window functions
+
+O que faz:
+- Calcula uma média “deslizante” ao longo do tempo para suavizar variações e evidenciar tendência.
+
+Versão A (centralizada): 1 anterior + atual + 1 próximo
+- Boa para análise histórica e visualização (suavização mais “bonita”).
+- Não é ideal para acompanhamento em tempo real, porque usa o “próximo” período (informação do futuro).
+
+Versão B (somente passado): 2 anteriores + atual
+- Boa para operação / monitoramento / análises que não podem usar dados futuros.
+- Mais realista para acompanhamento e forecasting simples.
+
+Cuidados:
+- Se existir mais de uma linha por (funcionario, ano, mes), agregue antes para não distorcer a média.
+- Requer MySQL 8+ (ou qualquer banco com suporte a window functions).
+*/
+
+-- Versão A: média móvel centralizada (anterior + atual + próximo)
+SELECT
+    funcionario,
+    ano,
+    mes,
+    unidades_vendidas,
+    ROUND(
+        AVG(unidades_vendidas) OVER (
+            PARTITION BY funcionario
+            ORDER BY ano, mes
+            ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING
+        )
+    , 2) AS media_movel_3p_centralizada
+FROM cap12.vendas;
+
+-- Versão B: média móvel usando apenas passado (2 anteriores + atual)
+SELECT
+    funcionario,
+    ano,
+    mes,
+    unidades_vendidas,
+    ROUND(
+        AVG(unidades_vendidas) OVER (
+            PARTITION BY funcionario
+            ORDER BY ano, mes
+            ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+        )
+    , 2) AS media_movel_3p_passado
 FROM cap12.vendas;
