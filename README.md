@@ -12,9 +12,8 @@ O SQL 3C ajuda você a pensar antes de escrever query:
 
 Quando você define os 3C, a query fica mais clara e objetiva.
 
----
 
-## 📦 Estrutura sugerida
-> (Vamos ajustando conforme você for me enviando as 12 consultas)
+
+
 
 
